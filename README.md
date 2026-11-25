@@ -1,6 +1,6 @@
 # MINI GAMES
 
-8 games bundled locally under `games/`, played inside this site's game screen.
+11 games bundled locally under `games/`, played inside this site's game screen.
 
 Open `index.html` through a static HTTP server. No build step or API key is required.
 The GitHub Pages workflow publishes the collection on pushes to main.
@@ -11,3 +11,5 @@ The imported game code retains its existing features and save behavior. Suika re
 
 The collection loads only the selected game, unloads it when returning to the lobby,
 and supports category filters, direct game hashes, restart and fullscreen.
+
+Board games: Shogi, Othello and Chess imported from https://github.com/Hibiki2026/Syougi and enhanced with CSS 3D boards and victory/defeat effects. Chess retains its chess.js CDN dependency.
