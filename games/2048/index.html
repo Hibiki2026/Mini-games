@@ -1,0 +1,560 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2048 - Number Puzzle</title>
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#f4f5fa;
+  --panel:#ffffff;
+  --text:#292d3e;
+  --muted:#85899a;
+  --board:#bbc0ce;
+  --empty:#dfe2eb;
+  --accent:#7966ef;
+}
+body.dark{
+  --bg:#171925;
+  --panel:#242839;
+  --text:#f5f5ff;
+  --muted:#a5a9bd;
+  --board:#34394c;
+  --empty:#454b60;
+  --accent:#9b8aff;
+}
+body{
+  margin:0;
+  min-height:100vh;
+  padding:22px 14px 40px;
+  background:var(--bg);
+  color:var(--text);
+  font-family:system-ui,-apple-system,sans-serif;
+  transition:background .25s,color .25s;
+}
+.container{max-width:520px;margin:auto}
+header{text-align:center;margin-bottom:18px}
+h1{
+  font-size:48px;
+  margin:0;
+  font-weight:950;
+  letter-spacing:-3px;
+  background:linear-gradient(120deg,#7865ee,#ee72b5);
+  color:transparent;
+  background-clip:text;
+}
+.subtitle{color:var(--muted);font-size:13px;margin-top:0}
+.top-buttons{
+  display:flex;justify-content:center;gap:8px;flex-wrap:wrap;
+  margin-bottom:15px
+}
+button{
+  border:0;border-radius:12px;padding:11px 15px;
+  font-weight:800;font-size:13px;cursor:pointer;
+  color:white;background:var(--accent);
+  transition:transform .15s,filter .15s;
+}
+button:hover{filter:brightness(1.08);transform:translateY(-2px)}
+button:active{transform:scale(.96)}
+button.secondary{background:#9298aa}
+button.pink{background:#e66ca9}
+.scores{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.score-box{
+  background:var(--panel);border-radius:15px;padding:12px;
+  text-align:center;box-shadow:0 4px 14px #0000000b
+}
+.score-label{font-size:11px;color:var(--muted);font-weight:800}
+.score-value{font-size:25px;font-weight:900;margin-top:2px}
+.game-message{
+  text-align:center;min-height:26px;font-weight:800;
+  color:var(--accent);margin:8px 0
+}
+.board{
+  background:var(--board);padding:9px;border-radius:18px;
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:9px;position:relative;touch-action:none;
+  box-shadow:0 9px 25px #00000018;
+  user-select:none;
+}
+.cell{
+  aspect-ratio:1;background:var(--empty);border-radius:11px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:clamp(21px,7vw,35px);font-weight:950;
+  position:relative;overflow:hidden;
+  transition:background .15s;
+}
+.cell.filled{animation:appear .16s ease-out}
+.cell.merged{animation:merge .28s ease-out}
+@keyframes appear{
+  0%{transform:scale(.65);opacity:.4}
+  100%{transform:scale(1);opacity:1}
+}
+@keyframes merge{
+  0%{transform:scale(.72)}
+  55%{transform:scale(1.16)}
+  100%{transform:scale(1)}
+}
+.v2{background:#eee9df;color:#655b4e}
+.v4{background:#f5dfb7;color:#6d5941}
+.v8{background:#ffb36b;color:white}
+.v16{background:#ff9460;color:white}
+.v32{background:#fa755e;color:white}
+.v64{background:#ed5548;color:white}
+.v128{background:#e8c957;color:white;font-size:clamp(18px,6vw,29px)}
+.v256{background:#e5bd36;color:white;font-size:clamp(18px,6vw,29px)}
+.v512{background:#dba92b;color:white;font-size:clamp(18px,6vw,29px)}
+.v1024{background:#a58ae9;color:white;font-size:clamp(15px,5vw,24px)}
+.v2048{background:linear-gradient(135deg,#ffca55,#f28bba,#8874ef);color:white;font-size:clamp(15px,5vw,24px);box-shadow:inset 0 0 15px #ffffff80}
+.vhigh{background:linear-gradient(135deg,#6c65d9,#d56ebc);color:white;font-size:clamp(14px,4.5vw,22px)}
+.controls{
+  display:grid;grid-template-columns:repeat(3,58px);
+  justify-content:center;gap:6px;margin:18px auto 12px
+}
+.controls button{height:48px;font-size:20px;padding:0;border-radius:13px}
+.controls .up{grid-column:2}
+.controls .left{grid-column:1;grid-row:2}
+.controls .down{grid-column:2;grid-row:2}
+.controls .right{grid-column:3;grid-row:2}
+.help{text-align:center;font-size:12px;color:var(--muted);line-height:1.8}
+.section{
+  margin-top:22px;background:var(--panel);border-radius:17px;
+  padding:17px;box-shadow:0 4px 14px #0000000b
+}
+.section h2{font-size:16px;margin:0 0 12px}
+.section p{font-size:12px;color:var(--muted);line-height:1.7}
+.code-area{
+  width:100%;min-height:78px;resize:vertical;
+  border:2px solid var(--empty);border-radius:11px;
+  background:var(--bg);color:var(--text);
+  padding:11px;font-size:12px;outline:none;
+  overflow-wrap:anywhere
+}
+.code-buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.code-buttons button{flex:1;min-width:110px}
+.footer{text-align:center;color:var(--muted);font-size:11px;margin-top:22px}
+.overlay{
+  position:fixed;inset:0;background:#111827a8;
+  display:none;align-items:center;justify-content:center;
+  padding:20px;z-index:10
+}
+.overlay.show{display:flex}
+.dialog{
+  background:var(--panel);color:var(--text);border-radius:22px;
+  padding:28px 22px;text-align:center;width:min(330px,100%);
+  box-shadow:0 20px 70px #0006;animation:pop .3s ease-out
+}
+@keyframes pop{from{transform:scale(.75);opacity:0}to{transform:scale(1);opacity:1}}
+.dialog h2{font-size:28px;margin:0 0 8px}
+.dialog p{color:var(--muted);font-size:13px}
+.dialog button{margin-top:10px;width:100%}
+.particle{
+  position:fixed;pointer-events:none;z-index:20;
+  font-size:20px;animation:float .8s ease-out forwards
+}
+@keyframes float{
+  0%{opacity:1;transform:translate(0,0) scale(.5)}
+  100%{opacity:0;transform:translate(var(--x),var(--y)) scale(1.5)}
+}
+@media(max-width:380px){
+  body{padding:14px 10px}
+  .board{gap:6px;padding:7px}
+  .cell{border-radius:8px}
+  h1{font-size:42px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>2048</h1>
+  <p class="subtitle">NUMBER PUZZLE · MERGE YOUR WAY UP</p>
+</header>
+
+<div class="top-buttons">
+  <button onclick="newGame()">↻ 新しく始める</button>
+  <button class="secondary" onclick="toggleTheme()">🌙 テーマ切替</button>
+</div>
+
+<div class="scores">
+  <div class="score-box">
+    <div class="score-label">SCORE</div>
+    <div class="score-value" id="score">0</div>
+  </div>
+  <div class="score-box">
+    <div class="score-label">BEST</div>
+    <div class="score-value" id="best">0</div>
+  </div>
+</div>
+
+<div class="game-message" id="message">2048を目指そう！</div>
+<div class="board" id="board"></div>
+
+<div class="controls">
+  <button class="up" onclick="move('up')">▲</button>
+  <button class="left" onclick="move('left')">◀</button>
+  <button class="down" onclick="move('down')">▼</button>
+  <button class="right" onclick="move('right')">▶</button>
+</div>
+
+<div class="help">
+  キーボードの ↑ ↓ ← → または WASD で操作<br>
+  スマホは盤面をスワイプして操作できるよ！
+</div>
+
+<div class="section">
+  <h2>🔑 引き継ぎシステム</h2>
+  <p>今のゲームの状態をコードにして保存できます。別の端末でもコードを入力すれば続きから遊べます。</p>
+  <textarea class="code-area" id="transferCode" placeholder="ここに引き継ぎコードが表示されます。入力することもできます。"></textarea>
+  <div class="code-buttons">
+    <button onclick="createCode()">コードを発行</button>
+    <button class="pink" onclick="copyCode()">コードをコピー</button>
+    <button class="secondary" onclick="loadCode()">コードから引き継ぐ</button>
+  </div>
+  <p id="codeMessage"></p>
+</div>
+
+<div class="footer">2048 PUZZLE · HAVE FUN!</div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="dialog">
+    <h2 id="dialogTitle">GAME OVER</h2>
+    <p id="dialogText">もう一度挑戦しよう！</p>
+    <button onclick="newGame()">もう一度遊ぶ</button>
+    <button class="secondary" onclick="closeDialog()">続ける</button>
+  </div>
+</div>
+
+<script>
+const SIZE=4;
+const KEY='2048_game_save_v3';
+const BEST='2048_game_best_v3';
+const THEME='2048_theme_v3';
+
+let grid=[];
+let score=0;
+let best=Number(localStorage.getItem(BEST))||0;
+let won=false;
+let over=false;
+let hasShownWin=false;
+let mergedPositions=[];
+let previousGrid=[];
+
+const el=id=>document.getElementById(id);
+
+function emptyGrid(){
+  return Array.from({length:SIZE},()=>Array(SIZE).fill(0));
+}
+
+function start(){
+  try{
+    const saved=localStorage.getItem(KEY);
+    if(saved){
+      const data=JSON.parse(saved);
+      if(valid(data)){
+        grid=data.grid;
+        score=data.score;
+        best=Math.max(best,data.best||0);
+        won=!!data.won;
+        over=!!data.over;
+        hasShownWin=!!data.hasShownWin;
+        render();
+        return;
+      }
+    }
+  }catch(e){}
+  newGame();
+}
+
+function valid(data){
+  if(!data||!Array.isArray(data.grid)||data.grid.length!==4)return false;
+  if(!Number.isSafeInteger(data.score)||data.score<0)return false;
+  if(data.best!==undefined&&(!Number.isSafeInteger(data.best)||data.best<0))return false;
+  for(const row of data.grid){
+    if(!Array.isArray(row)||row.length!==4)return false;
+    for(const v of row){
+      if(!Number.isSafeInteger(v)||v<0)return false;
+      if(v!==0&&Math.log2(v)%1!==0)return false;
+    }
+  }
+  return true;
+}
+
+function save(){
+  best=Math.max(best,score);
+  localStorage.setItem(BEST,String(best));
+  localStorage.setItem(THEME,document.body.classList.contains('dark')?'dark':'light');
+  localStorage.setItem(KEY,JSON.stringify({
+    grid,score,best,won,over,hasShownWin
+  }));
+}
+
+function newGame(){
+  grid=emptyGrid();
+  score=0;
+  won=false;
+  over=false;
+  hasShownWin=false;
+  el('overlay').classList.remove('show');
+  el('message').textContent='2048を目指そう！';
+  addRandom();
+  addRandom();
+  render();
+  save();
+}
+
+function addRandom(){
+  const empty=[];
+  for(let r=0;r<4;r++){
+    for(let c=0;c<4;c++){
+      if(grid[r][c]===0)empty.push([r,c]);
+    }
+  }
+  if(!empty.length)return;
+  const [r,c]=empty[Math.floor(Math.random()*empty.length)];
+  grid[r][c]=Math.random()<0.9?2:4;
+}
+
+function render(){
+  const board=el('board');
+  board.innerHTML='';
+  for(let r=0;r<4;r++){
+    for(let c=0;c<4;c++){
+      const v=grid[r][c];
+      const cell=document.createElement('div');
+      cell.className='cell';
+      if(v){
+        cell.textContent=v;
+        cell.classList.add(v<=2048?'v'+v:'vhigh');
+        if(previousGrid[r]&&previousGrid[r][c]!==v){
+          cell.classList.add(mergedPositions.some(p=>p[0]===r&&p[1]===c)?'merged':'filled');
+        }
+      }
+      board.appendChild(cell);
+    }
+  }
+  el('score').textContent=score.toLocaleString();
+  el('best').textContent=best.toLocaleString();
+}
+
+function move(direction){
+  if(over)return;
+  const old=grid.map(row=>row.slice());
+  const next=emptyGrid();
+  let gained=0;
+  let changed=false;
+  mergedPositions=[];
+
+  for(let i=0;i<4;i++){
+    let line=[];
+    for(let j=0;j<4;j++){
+      let r,c;
+      if(direction==='left'){r=i;c=j}
+      if(direction==='right'){r=i;c=3-j}
+      if(direction==='up'){r=j;c=i}
+      if(direction==='down'){r=3-j;c=i}
+      line.push(grid[r][c]);
+    }
+
+    let values=line.filter(v=>v!==0);
+    let result=[];
+    for(let j=0;j<values.length;j++){
+      if(values[j]===values[j+1]){
+        const value=values[j]*2;
+        result.push(value);
+        gained+=value;
+        j++;
+      }else{
+        result.push(values[j]);
+      }
+    }
+    while(result.length<4)result.push(0);
+
+    for(let j=0;j<4;j++){
+      let r,c;
+      if(direction==='left'){r=i;c=j}
+      if(direction==='right'){r=i;c=3-j}
+      if(direction==='up'){r=j;c=i}
+      if(direction==='down'){r=3-j;c=i}
+      next[r][c]=result[j];
+      if(result[j]!==grid[r][c])changed=true;
+      if(result[j]!==0&&result[j]>grid[r][c]&&result[j]===grid[r][c]*2){
+        mergedPositions.push([r,c]);
+      }
+    }
+  }
+
+  if(!changed)return;
+
+  previousGrid=old;
+  grid=next;
+  score+=gained;
+  addRandom();
+
+  if(gained>0){
+    el('message').textContent='✨ '+gained+' ポイント獲得！';
+    if(mergedPositions.length)celebrate();
+  }else{
+    el('message').textContent='いい感じ！';
+  }
+
+  if(!won&&grid.some(row=>row.includes(2048))){
+    won=true;
+    hasShownWin=true;
+    showDialog('🎉 2048達成！','おめでとう！2048に到達したよ！続けてプレイもできるよ。');
+  }
+
+  if(!canMove()){
+    over=true;
+    showDialog('GAME OVER','ゲーム終了！新しいゲームに挑戦しよう！');
+  }
+
+  render();
+  save();
+}
+
+function canMove(){
+  for(let r=0;r<4;r++){
+    for(let c=0;c<4;c++){
+      if(grid[r][c]===0)return true;
+      if(r<3&&grid[r][c]===grid[r+1][c])return true;
+      if(c<3&&grid[r][c]===grid[r][c+1])return true;
+    }
+  }
+  return false;
+}
+
+function showDialog(title,message){
+  el('dialogTitle').textContent=title;
+  el('dialogText').textContent=message;
+  el('overlay').classList.add('show');
+}
+
+function closeDialog(){
+  el('overlay').classList.remove('show');
+}
+
+function celebrate(){
+  const board=el('board');
+  const rect=board.getBoundingClientRect();
+  const emojis=['✨','⭐','💜','🌟','💖'];
+  for(let i=0;i<15;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    p.textContent=emojis[Math.floor(Math.random()*emojis.length)];
+    p.style.left=(rect.left+Math.random()*rect.width)+'px';
+    p.style.top=(rect.top+Math.random()*rect.height)+'px';
+    p.style.setProperty('--x',(Math.random()*180-90)+'px');
+    p.style.setProperty('--y',(Math.random()*-150-20)+'px');
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(),850);
+  }
+}
+
+function toggleTheme(){
+  document.body.classList.toggle('dark');
+  save();
+}
+
+function createCode(){
+  const data={
+    version:1,
+    grid,
+    score,
+    best,
+    won,
+    over,
+    hasShownWin
+  };
+  const json=JSON.stringify(data);
+  const bytes=new TextEncoder().encode(json);
+  let binary='';
+  bytes.forEach(b=>binary+=String.fromCharCode(b));
+  const encoded=btoa(binary)
+    .replace(/\+/g,'-')
+    .replace(/\//g,'_')
+    .replace(/=+$/,'');
+  el('transferCode').value='2048-'+encoded;
+  el('codeMessage').textContent='✅ 引き継ぎコードを発行したよ！';
+}
+
+async function copyCode(){
+  const area=el('transferCode');
+  if(!area.value.trim())createCode();
+  try{
+    await navigator.clipboard.writeText(area.value);
+    el('codeMessage').textContent='📋 コピーしました！';
+  }catch(e){
+    area.focus();
+    area.select();
+    el('codeMessage').textContent='コードを選択したよ。Ctrl+C または ⌘+C でコピーしてね。';
+  }
+}
+
+function loadCode(){
+  try{
+    let code=el('transferCode').value.trim();
+    if(!code.startsWith('2048-'))throw new Error();
+    let encoded=code.slice(5).replace(/-/g,'+').replace(/_/g,'/');
+    while(encoded.length%4)encoded+='=';
+    const binary=atob(encoded);
+    const bytes=Uint8Array.from(binary,ch=>ch.charCodeAt(0));
+    const data=JSON.parse(new TextDecoder().decode(bytes));
+    if(data.version!==1||!valid(data))throw new Error();
+
+    grid=data.grid.map(row=>row.slice());
+    score=data.score;
+    best=Math.max(best,data.best||0);
+    won=!!data.won;
+    over=!!data.over;
+    hasShownWin=!!data.hasShownWin;
+    closeDialog();
+    render();
+    save();
+    el('message').textContent='✅ 引き継ぎ成功！';
+    el('codeMessage').textContent='🎉 ゲームデータを読み込んだよ！';
+  }catch(e){
+    el('codeMessage').textContent='❌ コードが正しくないみたい。もう一度確認してね。';
+  }
+}
+
+document.addEventListener('keydown',e=>{
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)){
+    e.preventDefault();
+  }
+  if(e.key==='ArrowUp'||e.key.toLowerCase()==='w')move('up');
+  if(e.key==='ArrowDown'||e.key.toLowerCase()==='s')move('down');
+  if(e.key==='ArrowLeft'||e.key.toLowerCase()==='a')move('left');
+  if(e.key==='ArrowRight'||e.key.toLowerCase()==='d')move('right');
+});
+
+let touchStartX=0;
+let touchStartY=0;
+const board=el('board');
+
+board.addEventListener('touchstart',e=>{
+  touchStartX=e.changedTouches[0].clientX;
+  touchStartY=e.changedTouches[0].clientY;
+},{passive:true});
+
+board.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-touchStartX;
+  const dy=e.changedTouches[0].clientY-touchStartY;
+  if(Math.max(Math.abs(dx),Math.abs(dy))<25)return;
+  if(Math.abs(dx)>Math.abs(dy)){
+    move(dx>0?'right':'left');
+  }else{
+    move(dy>0?'down':'up');
+  }
+},{passive:true});
+
+if(localStorage.getItem(THEME)==='dark'){
+  document.body.classList.add('dark');
+}
+start();
+</script>
+</body>
+</html>
+

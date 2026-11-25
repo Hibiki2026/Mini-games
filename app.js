@@ -1,0 +1,15 @@
+'use strict';
+const games=[
+{id:'suika',name:'Suika',category:'puzzle',icon:'🍉',color:'#467f4155',description:'フルーツを落として合体。大きなスイカを目指そう。'},
+{id:'garden-gnome',name:'Garden Gnome',category:'action',icon:'🌷',color:'#8d4dc055',description:'タイミングを合わせてノームを飛ばす、庭の大冒険。'},
+{id:'pacman',name:'Pacman',category:'action',icon:'🟡',color:'#d2ad2455',description:'迷路を駆け抜け、ゴーストをかわしてドットを集めよう。'},
+{id:'floppy2048',name:'Floppy 2048',category:'action',icon:'🔢',color:'#bf6c3155',description:'空を飛ぶ2048。タイミングと数字に挑戦。'},
+{id:'floppy-bird',name:'Floppy Bird',category:'action',icon:'🐤',color:'#3485a355',description:'タップで羽ばたいて、障害物のすき間を進もう。'},
+{id:'tetris',name:'Tetris',category:'puzzle',icon:'🟪',color:'#794dd255',description:'ブロックを回転させて、ラインを消そう。'},
+{id:'block-blast',name:'Block Blast',category:'puzzle',icon:'🧩',color:'#3d8e7655',description:'形を見極めて配置。縦と横の列をそろえよう。'},
+{id:'2048',name:'2048',category:'puzzle',icon:'2048',color:'#b0813255',description:'同じ数字を重ねて、2048の先へ。'}];
+const $=id=>document.getElementById(id);let current=null,returnFocus=null;
+for(const g of games){const b=document.createElement('button');b.className='card';b.dataset.category=g.category;b.style.setProperty('--accent',g.color);b.innerHTML=`<div class="art" aria-hidden="true">${g.icon}</div><div class="info"><small>${g.category.toUpperCase()}</small><h2>${g.name}</h2><p>${g.description}</p><span class="play">PLAY NOW ↗</span></div>`;b.onclick=()=>{returnFocus=b;location.hash=g.id};$('games').append(b)}
+for(const b of document.querySelectorAll('[data-filter]'))b.onclick=()=>{for(const t of document.querySelectorAll('[data-filter]'))t.setAttribute('aria-pressed',String(t===b));for(const card of document.querySelectorAll('.card'))card.hidden=b.dataset.filter!=='all'&&card.dataset.category!==b.dataset.filter};
+function route(){const game=games.find(g=>g.id===location.hash.slice(1));if(game?.id===current?.id)return;if(document.fullscreenElement)document.exitFullscreen?.().catch(()=>{});$('stage').replaceChildren();current=game||null;$('lobby').hidden=!!game;$('player').hidden=!game;document.title=game?game.name+' / MINI GAMES':'MINI GAMES / Arcade';if(!game){returnFocus?.focus();return}const frame=document.createElement('iframe');frame.title=game.name;frame.src='games/'+game.id+'/index.html';frame.allow='fullscreen; autoplay';frame.setAttribute('allowfullscreen','');frame.onload=()=>frame.contentWindow.focus();$('gameTitle').textContent=game.name;$('stage').append(frame)}
+$('back').onclick=()=>{history.replaceState(null,'',location.pathname+location.search);route()};$('reload').onclick=()=>{if(confirm('ゲームを再起動しますか？未保存の進行は失われます。')){const frame=$('stage').querySelector('iframe');if(frame)frame.src=frame.src}};$('fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if($('player').requestFullscreen)await $('player').requestFullscreen();else $('fullscreen').textContent='このブラウザでは非対応'}catch{$('fullscreen').textContent='全画面にできません'}};addEventListener('hashchange',route);route();

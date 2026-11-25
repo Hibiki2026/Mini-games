@@ -1,0 +1,674 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Floppy2048</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101326;color:white;font-family:system-ui,sans-serif;overflow:auto}
+#app{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:10px}
+header{width:100%;max-width:1020px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:5px 3px 12px}
+.logo{font-size:23px;font-weight:900}
+.logo span{color:#8b83ff}
+.stats{display:flex;gap:5px;flex-wrap:wrap}
+.stat{background:#222744;border:1px solid #343c62;border-radius:11px;padding:6px 9px;text-align:center;min-width:65px}
+.stat small{display:block;color:#9da8ce;font-size:9px}
+.stat b{font-size:16px}
+#mainLayout{display:flex;gap:12px;justify-content:center;align-items:stretch;width:100%;flex:1}
+#gameWrap{position:relative;width:min(650px,62vw);height:min(78vh,850px);min-height:450px;border:2px solid #333c64;border-radius:20px;overflow:hidden;background:#171d39;flex-shrink:0}
+canvas{width:100%;height:100%;display:block}
+#overlay{position:absolute;inset:0;background:#101326ee;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;overflow-y:auto}
+.panel{width:100%;max-width:390px}
+.panel h1{font-size:34px;margin:0 0 8px}
+.panel p{color:#c2c9e8;line-height:1.6;font-size:13px}
+.levels{display:grid;gap:10px;margin-top:16px}
+.levelBtn{width:100%;padding:13px 12px;text-align:left;border:1px solid #555d91;background:linear-gradient(135deg,#30385f,#202744);border-radius:13px;color:white;cursor:pointer}
+.levelBtn b{display:block;font-size:18px;margin-bottom:3px}
+.levelBtn small{display:block;font-size:12px;color:#d0d5f0;font-weight:500;line-height:1.5}
+.levelBtn.easy{border-color:#63d9b5}
+.levelBtn.normal{border-color:#6caeff}
+.levelBtn.hard{border-color:#ffad65}
+.levelBtn.extreme{border-color:#ff668f;background:linear-gradient(135deg,#642c55,#30203f)}
+button:active{transform:scale(.97)}
+.subBtn{border:0;border-radius:12px;padding:12px 22px;background:linear-gradient(135deg,#8b83ff,#5b6cff);color:white;font-weight:900;font-size:16px;cursor:pointer;margin:5px}
+#hint{position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#aeb7d8;font-size:12px;pointer-events:none}
+#historyPanel{width:min(350px,35vw);height:min(78vh,850px);min-height:450px;background:#191f3b;border:2px solid #333c64;border-radius:20px;padding:12px;display:flex;flex-direction:column;min-width:0}
+.historyTitle{font-size:20px;font-weight:900;margin-bottom:4px}
+.historyCounts{font-size:11px;color:#aeb7d8;line-height:1.7;margin-bottom:9px}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:8px}
+.tab{background:#252d50;border:1px solid #424d7c;border-radius:8px;color:#dce2ff;padding:7px 2px;font-size:11px;cursor:pointer}
+.tab.active{background:#655ce0;border-color:#9c95ff;color:white;font-weight:900}
+#rankList{overflow-y:auto;min-height:0;flex:1;padding-right:3px}
+.rankItem{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:#222a49;border:1px solid #38436b;border-radius:10px;padding:9px;margin-bottom:6px;color:white;cursor:pointer}
+.rankNum{font-weight:900;font-size:17px;width:28px;text-align:center;color:#b8bfff;flex-shrink:0}
+.rankInfo{min-width:0;flex:1}
+.rankScore{font-size:17px;font-weight:900}
+.rankMeta{font-size:10px;color:#aeb7d8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.empty{color:#9da8ce;text-align:center;padding:30px 8px;font-size:13px}
+#detail{display:none;position:fixed;inset:0;background:#000b;z-index:10;align-items:center;justify-content:center;padding:20px}
+#detailBox{background:#222a49;border:1px solid #6570a5;border-radius:18px;padding:22px;width:min(340px,100%);text-align:center}
+.detailScore{font-size:38px;font-weight:900;color:#a9a2ff}
+.detailText{line-height:2;color:#d5dcfa;font-size:14px;margin:12px 0}
+#mobileTip{text-align:center;color:#9da8ce;font-size:12px;padding:9px}
+@media(max-width:800px){
+ #mainLayout{flex-direction:column;align-items:center}
+ #gameWrap{width:100%;height:62vh;min-height:420px;max-height:700px}
+ #historyPanel{width:100%;height:460px;min-height:350px}
+}
+@media(max-height:620px) and (min-width:801px){
+ #gameWrap,#historyPanel{height:85vh;min-height:400px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+ <div class="logo">FLOPPY<span>2048</span></div>
+ <div class="stats">
+  <div class="stat"><small>スコア</small><b id="score">0</b></div>
+  <div class="stat"><small>現在の数字</small><b id="number">2</b></div>
+  <div class="stat"><small>自己ベスト</small><b id="best">0</b></div>
+  <div class="stat"><small>総プレイ回数</small><b id="plays">0</b></div>
+ </div>
+</header>
+
+<div id="mainLayout">
+ <div id="gameWrap">
+  <canvas id="game"></canvas>
+  <div id="overlay"><div class="panel" id="panel"></div></div>
+  <div id="hint">タップ / ENTER / SPACE で上昇</div>
+ </div>
+
+ <aside id="historyPanel">
+  <div class="historyTitle">🏆 歴代ランキング</div>
+  <div class="historyCounts" id="historyCounts"></div>
+  <div class="tabs">
+   <button class="tab active" data-tab="all">総合</button>
+   <button class="tab" data-tab="easy">簡単</button>
+   <button class="tab" data-tab="normal">普通</button>
+   <button class="tab" data-tab="hard">難しい</button>
+   <button class="tab" data-tab="extreme">ゲキムズ</button>
+  </div>
+  <div id="rankList"></div>
+ </aside>
+</div>
+<div id="mobileTip">画面タップでも操作できるよ！</div>
+</div>
+
+<div id="detail">
+ <div id="detailBox">
+  <h2>プレイ記録</h2>
+  <div class="detailScore" id="detailScore"></div>
+  <div class="detailText" id="detailText"></div>
+  <button class="subBtn" id="closeDetail">閉じる</button>
+ </div>
+</div>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const wrap=document.getElementById("gameWrap");
+const overlay=document.getElementById("overlay");
+const panel=document.getElementById("panel");
+
+const scoreEl=document.getElementById("score");
+const numberEl=document.getElementById("number");
+const bestEl=document.getElementById("best");
+const playsEl=document.getElementById("plays");
+
+let W=600,H=700,dpr=1;
+let running=false;
+let player,blocks,particles;
+let score=0,best=0,plays=0;
+let speed=3,frame=0;
+let backgroundOffset=0,lastTime=0,nextColumnX=0,flash=0;
+let selectedLevel="normal";
+let rankingTab="all";
+
+function loadData(key,fallback){
+ try{return JSON.parse(localStorage.getItem(key))??fallback}
+ catch(e){return fallback}
+}
+
+let history=loadData("floppy2048_history",[]);
+let levelPlays=loadData("floppy2048_level_plays",{
+ easy:0,normal:0,hard:0,extreme:0
+});
+
+if(!Array.isArray(history))history=[];
+if(!levelPlays||typeof levelPlays!=="object"){
+ levelPlays={easy:0,normal:0,hard:0,extreme:0};
+}
+
+const BLOCK_SIZE=80;
+const BLOCK_GAP=35;
+const COLUMN_SPACING=400;
+
+const LEVELS={
+ easy:{
+  name:"簡単",minBlocks:1,maxBlocks:4,gap:65,
+  columnSpacing:460,startSpeed:2.5,maxSpeed:2.5,
+  acceleration:0,extreme:false
+ },
+ normal:{
+  name:"普通",minBlocks:2,maxBlocks:5,gap:35,
+  columnSpacing:COLUMN_SPACING,startSpeed:3,maxSpeed:6.5,
+  acceleration:0.0008,extreme:false
+ },
+ hard:{
+  name:"難しい",minBlocks:4,maxBlocks:6,gap:46,
+  columnSpacing:360,startSpeed:4.7,maxSpeed:6.5,
+  acceleration:0.001,extreme:false
+ },
+ extreme:{
+  name:"ゲキムズ",minBlocks:6,maxBlocks:6,gap:0,
+  columnSpacing:400,startSpeed:6.5,maxSpeed:6.5,
+  acceleration:0,extreme:true
+ }
+};
+
+const config=()=>LEVELS[selectedLevel];
+
+best=Number(localStorage.getItem("floppy2048_best")||0);
+plays=Number(localStorage.getItem("floppy2048_plays")||0);
+bestEl.textContent=best;
+playsEl.textContent=plays;
+
+function saveHistory(){
+ localStorage.setItem("floppy2048_history",JSON.stringify(history));
+ localStorage.setItem("floppy2048_level_plays",JSON.stringify(levelPlays));
+ localStorage.setItem("floppy2048_plays",String(plays));
+ localStorage.setItem("floppy2048_best",String(best));
+}
+
+function updateHistoryCounts(){
+ document.getElementById("historyCounts").innerHTML=
+  "簡単 "+(levelPlays.easy||0)+"回 ・ 普通 "+(levelPlays.normal||0)+"回<br>"+
+  "難しい "+(levelPlays.hard||0)+"回 ・ ゲキムズ "+(levelPlays.extreme||0)+"回<br>"+
+  "<b>総プレイ回数："+plays+"回</b>";
+}
+
+function renderHistory(){
+ document.querySelectorAll(".tab").forEach(b=>{
+  b.classList.toggle("active",b.dataset.tab===rankingTab);
+ });
+
+ const list=history
+  .filter(x=>rankingTab==="all"||x.level===rankingTab)
+  .sort((a,b)=>b.score-a.score||a.time-b.time);
+
+ const box=document.getElementById("rankList");
+ box.innerHTML="";
+
+ if(!list.length){
+  box.innerHTML='<div class="empty">まだ記録がないよ！<br>プレイするとここに追加されるよ。</div>';
+  return;
+ }
+
+ list.forEach((item,i)=>{
+  const d=new Date(item.time);
+  const date=d.toLocaleDateString("ja-JP")+" "+d.toLocaleTimeString("ja-JP",{hour12:false});
+
+  const btn=document.createElement("button");
+  btn.className="rankItem";
+  btn.innerHTML=
+   '<div class="rankNum">'+(i+1)+'</div>'+
+   '<div class="rankInfo"><div class="rankScore">'+item.score+'点</div>'+
+   '<div class="rankMeta">'+LEVELS[item.level].name+' ・ '+date+'</div></div><span>›</span>';
+
+  btn.onclick=()=>{
+   document.getElementById("detailScore").textContent=item.score+"点";
+   document.getElementById("detailText").innerHTML=
+    "順位："+(i+1)+"位<br>"+
+    "難易度："+LEVELS[item.level].name+"<br>"+
+    "日付："+d.getFullYear()+"年"+(d.getMonth()+1)+"月"+d.getDate()+"日<br>"+
+    "時刻："+d.toLocaleTimeString("ja-JP",{hour12:false})+"<br>"+
+    "到達した数字："+Number(item.value).toLocaleString();
+   document.getElementById("detail").style.display="flex";
+  };
+
+  box.appendChild(btn);
+ });
+}
+
+function updateAllHistory(){
+ updateHistoryCounts();
+ renderHistory();
+}
+
+document.querySelectorAll(".tab").forEach(b=>{
+ b.onclick=()=>{
+  rankingTab=b.dataset.tab;
+  renderHistory();
+ };
+});
+
+document.getElementById("closeDetail").onclick=()=>{
+ document.getElementById("detail").style.display="none";
+};
+
+document.getElementById("detail").onclick=e=>{
+ if(e.target.id==="detail")e.currentTarget.style.display="none";
+};
+
+updateAllHistory();
+
+function resize(){
+ const r=wrap.getBoundingClientRect();
+ dpr=Math.min(window.devicePixelRatio||1,2);
+ W=Math.max(1,r.width);
+ H=Math.max(1,r.height);
+ canvas.width=Math.floor(W*dpr);
+ canvas.height=Math.floor(H*dpr);
+ ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+new ResizeObserver(resize).observe(wrap);
+resize();
+
+function showMenu(){
+ running=false;
+ overlay.style.display="flex";
+ panel.innerHTML=`
+  <h1>FLOPPY<span style="color:#8b83ff">2048</span></h1>
+  <p>プレイする難易度を選んでね！</p>
+  <div class="levels">
+   <button class="levelBtn easy" data-level="easy">
+    <b>🟢 簡単</b>
+    <small>ブロック少なめ。広い間隔でゆっくり。加速なし。小さい数字はセーフ。</small>
+   </button>
+   <button class="levelBtn normal" data-level="normal">
+    <b>🔵 普通</b>
+    <small>ブロック多め。だんだん加速。小さい数字はセーフ。</small>
+   </button>
+   <button class="levelBtn hard" data-level="hard">
+    <b>🟠 難しい</b>
+    <small>隙間はギリギリ。速めにスタートして加速！</small>
+   </button>
+   <button class="levelBtn extreme" data-level="extreme">
+    <b>💀 ゲキムズ</b>
+    <small>隙間なし！最上段と最下段だけが正解。最初から最高速度！</small>
+   </button>
+  </div>
+ `;
+ panel.querySelectorAll("[data-level]").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+   selectedLevel=btn.dataset.level;
+   start();
+  });
+ });
+}
+
+function reset(){
+ score=0;
+ frame=0;
+ backgroundOffset=0;
+ flash=0;
+ speed=config().startSpeed;
+
+ player={
+  x:W*.22,y:H*.5,vy:0,value:2,r:22
+ };
+
+ blocks=[];
+ particles=[];
+ scoreEl.textContent=0;
+ numberEl.textContent=2;
+
+ nextColumnX=W+100;
+ for(let i=0;i<7;i++){
+  makeColumn(nextColumnX);
+  nextColumnX+=config().columnSpacing;
+ }
+}
+
+function makeColumn(x){
+ const cfg=config();
+ const slotCount=6;
+
+ const availableGap=Math.min(
+  cfg.gap,
+  Math.max(0,(H-16-slotCount*BLOCK_SIZE)/(slotCount-1))
+ );
+
+ const total=slotCount*BLOCK_SIZE+(slotCount-1)*availableGap;
+ const top=Math.max(8,(H-total)/2);
+
+ let selected=[];
+
+ if(cfg.extreme){
+  selected=[0,1,2,3,4,5];
+ }else{
+  const amount=cfg.minBlocks+
+   Math.floor(Math.random()*(cfg.maxBlocks-cfg.minBlocks+1));
+
+  const positions=[0,1,2,3,4,5];
+
+  for(let i=positions.length-1;i>0;i--){
+   const j=Math.floor(Math.random()*(i+1));
+   [positions[i],positions[j]]=[positions[j],positions[i]];
+  }
+
+  selected=positions.slice(0,amount).sort((a,b)=>a-b);
+ }
+
+ const matchIndex=cfg.extreme?-1:Math.floor(Math.random()*selected.length);
+
+ for(let i=0;i<selected.length;i++){
+  let value;
+
+  if(cfg.extreme){
+   if(selected[i]===0||selected[i]===5){
+    value=player.value;
+   }else{
+    const choices=[player.value*2,player.value*4,player.value*8,player.value*16];
+    value=choices[Math.floor(Math.random()*choices.length)];
+   }
+  }else if(i===matchIndex){
+   value=player.value;
+  }else{
+   const choices=[player.value*2,player.value*4,player.value*8,player.value*16];
+   value=choices[Math.floor(Math.random()*choices.length)];
+  }
+
+  const slot=selected[i];
+
+  blocks.push({
+   x:x,
+   y:top+slot*(BLOCK_SIZE+availableGap),
+   w:BLOCK_SIZE,
+   h:BLOCK_SIZE,
+   value:value,
+   done:false
+  });
+ }
+}
+
+function colorFor(v){
+ const colors={
+  2:"#6ee7d8",4:"#6caeff",8:"#9b83ff",16:"#c17aff",
+  32:"#ff78b8",64:"#ff8b76",128:"#ffbd65",256:"#e7dc67",
+  512:"#a9dc72",1024:"#61d6a1",2048:"#5ce0e8"
+ };
+ if(colors[v])return colors[v];
+ const level=Math.round(Math.log2(v));
+ const hue=(level*47+25)%360;
+ return `hsl(${hue},85%,65%)`;
+}
+
+function burst(x,y,color,n=12){
+ for(let i=0;i<n;i++){
+  const a=Math.random()*Math.PI*2;
+  const s=1+Math.random()*4;
+  particles.push({
+   x,y,
+   vx:Math.cos(a)*s,
+   vy:Math.sin(a)*s,
+   life:35+Math.random()*15,
+   color
+  });
+ }
+}
+
+function flap(){
+ if(!running)return;
+ player.vy=-6.3;
+ burst(player.x,player.y,"#a9a2ff",5);
+}
+
+function start(){
+ reset();
+
+ plays++;
+ levelPlays[selectedLevel]=(levelPlays[selectedLevel]||0)+1;
+ saveHistory();
+ updateAllHistory();
+ playsEl.textContent=plays;
+
+ running=true;
+ overlay.style.display="none";
+ lastTime=performance.now();
+ requestAnimationFrame(loop);
+}
+
+function gameOver(){
+ if(!running)return;
+ running=false;
+
+ if(score>best){
+  best=score;
+  bestEl.textContent=best;
+ }
+
+ // プレイ終了時の記録を全件保存
+ history.push({
+  score:score,
+  value:player.value,
+  level:selectedLevel,
+  time:Date.now()
+ });
+
+ saveHistory();
+ updateAllHistory();
+
+ overlay.style.display="flex";
+ panel.innerHTML=`
+  <h1>GAME OVER</h1>
+  <p>
+   難易度：${config().name}<br>
+   スコア：${score}<br>
+   到達した数字：${player.value}<br>
+   自己ベスト：${best}<br>
+   総プレイ回数：${plays}
+  </p>
+  <button class="subBtn" id="retryBtn">もう一度プレイ</button>
+  <button class="subBtn" id="menuBtn">レベル選択に戻る</button>
+ `;
+ document.getElementById("retryBtn").addEventListener("click",start);
+ document.getElementById("menuBtn").addEventListener("click",showMenu);
+}
+
+function rounded(x,y,w,h,r){
+ ctx.beginPath();
+ ctx.roundRect(x,y,w,h,r);
+}
+
+function drawBackground(dt){
+ ctx.fillStyle="#171d39";
+ ctx.fillRect(0,0,W,H);
+
+ backgroundOffset=(backgroundOffset+speed*.25*dt)%55;
+ ctx.strokeStyle="#ffffff0b";
+ ctx.lineWidth=1;
+
+ for(let x=-55+backgroundOffset;x<W;x+=55){
+  ctx.beginPath();
+  ctx.moveTo(x,0);
+  ctx.lineTo(x,H);
+  ctx.stroke();
+ }
+
+ for(let y=0;y<H;y+=55){
+  ctx.beginPath();
+  ctx.moveTo(0,y);
+  ctx.lineTo(W,y);
+  ctx.stroke();
+ }
+}
+
+function drawBlock(b){
+ const c=colorFor(b.value);
+ ctx.save();
+ ctx.shadowColor=c;
+ ctx.shadowBlur=13;
+ rounded(b.x,b.y,b.w,b.h,12);
+ ctx.fillStyle=c;
+ ctx.fill();
+ ctx.shadowBlur=0;
+ rounded(b.x+4,b.y+4,b.w-8,b.h-8,10);
+ ctx.fillStyle="#ffffff22";
+ ctx.fill();
+ ctx.fillStyle="#172039";
+ ctx.font="900 "+Math.max(18,b.w*(String(b.value).length>5?.20:.30))+"px system-ui";
+ ctx.textAlign="center";
+ ctx.textBaseline="middle";
+ ctx.fillText(b.value,b.x+b.w/2,b.y+b.h/2);
+ ctx.restore();
+}
+
+function drawPlayer(){
+ const p=player,c=colorFor(p.value);
+ ctx.save();
+ ctx.shadowColor=c;
+ ctx.shadowBlur=25;
+ ctx.beginPath();
+ ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+ ctx.fillStyle=c;
+ ctx.fill();
+ ctx.shadowBlur=0;
+ ctx.beginPath();
+ ctx.arc(p.x-6,p.y-7,p.r*.62,0,Math.PI*2);
+ ctx.fillStyle="#ffffff35";
+ ctx.fill();
+ ctx.fillStyle="#172039";
+ ctx.font="900 "+(String(p.value).length>3?10:13)+"px system-ui";
+ ctx.textAlign="center";
+ ctx.textBaseline="middle";
+ ctx.fillText(p.value,p.x,p.y);
+ ctx.restore();
+}
+
+function update(dt){
+ const cfg=config();
+ frame+=dt;
+
+ if(cfg.acceleration>0){
+  speed=Math.min(cfg.maxSpeed,cfg.startSpeed+frame*cfg.acceleration+score*.008);
+ }else{
+  speed=cfg.startSpeed;
+ }
+
+ player.vy+=.27*dt;
+ player.y+=player.vy*dt;
+
+ if(player.y+player.r<0){
+  player.y=H+player.r;
+ }else if(player.y-player.r>H){
+  player.y=-player.r;
+ }
+
+ if(flash>0)flash-=dt;
+
+ for(const b of blocks){
+  b.x-=speed*dt;
+
+  if(!b.done&&
+   player.x+player.r>b.x&&
+   player.x-player.r<b.x+b.w&&
+   player.y+player.r>b.y&&
+   player.y-player.r<b.y+b.h){
+
+   if(b.value===player.value){
+    b.done=true;
+    player.value*=2;
+    player.r=Math.min(30,22+Math.log2(player.value/2)*.8);
+    score++;
+    numberEl.textContent=player.value;
+    scoreEl.textContent=score;
+    burst(b.x+b.w/2,b.y+b.h/2,"#ffffff",24);
+    flash=10;
+
+   }else if(
+    (selectedLevel==="easy"||selectedLevel==="normal")&&
+    b.value<player.value
+   ){
+    // 簡単・普通は自分より小さい数字ならセーフ
+    b.done=true;
+    burst(b.x+b.w/2,b.y+b.h/2,"#8ce8bd",10);
+
+   }else{
+    burst(player.x,player.y,"#ff617d",20);
+    gameOver();
+    return;
+   }
+  }
+ }
+
+ blocks=blocks.filter(b=>b.x+b.w>-150);
+
+ nextColumnX-=speed*dt;
+
+ while(nextColumnX<W+200){
+  makeColumn(nextColumnX);
+  nextColumnX+=cfg.columnSpacing;
+ }
+
+ for(const p of particles){
+  p.x+=p.vx*dt;
+  p.y+=p.vy*dt;
+  p.vy+=.08*dt;
+  p.life-=dt;
+ }
+
+ particles=particles.filter(p=>p.life>0);
+}
+
+function draw(){
+ drawBackground(1);
+
+ for(const b of blocks){
+  if(!b.done)drawBlock(b);
+ }
+
+ drawPlayer();
+
+ for(const p of particles){
+  ctx.globalAlpha=Math.max(0,p.life/45);
+  ctx.fillStyle=p.color;
+  ctx.beginPath();
+  ctx.arc(p.x,p.y,3,0,Math.PI*2);
+  ctx.fill();
+ }
+
+ ctx.globalAlpha=1;
+
+ if(flash>0){
+  ctx.fillStyle="rgba(255,255,255,"+(flash/70)+")";
+  ctx.fillRect(0,0,W,H);
+ }
+}
+
+function loop(now){
+ if(!running)return;
+
+ const dt=Math.min(2,(now-lastTime)/16.67);
+ lastTime=now;
+
+ update(dt);
+ draw();
+
+ if(running)requestAnimationFrame(loop);
+}
+
+canvas.addEventListener("pointerdown",e=>{
+ e.preventDefault();
+ flap();
+});
+
+document.addEventListener("keydown",e=>{
+ if(e.code==="Enter"||e.code==="Space"||e.code==="ArrowUp"){
+  if(running){
+   e.preventDefault();
+   flap();
+  }
+ }
+});
+
+drawBackground(0);
+showMenu();
+</script>
+</body>
+</html>
+
