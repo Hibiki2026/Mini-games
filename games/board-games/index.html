@@ -1,10 +1,9 @@
 
 <!doctype html>
 <html lang="ja">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>将棋・オセロ・チェス</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script src="chess.js"></script>
 <style>
 :root{--bg:#101827;--panel:#1c2940;--panel2:#263650;--text:#f4f7ff;--muted:#aab8cf;--accent:#65d6c5;--gold:#ffd166}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#263a59,#101827 65%);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;min-height:100vh}
@@ -32,7 +31,7 @@ button,select{font:inherit}button{border:0;border-radius:12px;padding:11px 17px;
  <div class="field"><label>CPUの強さ（レベル1～20）</label><div id="levels" class="level-grid"></div></div>
  <div class="field"><label>先攻・後攻</label><div class="choices" id="turnChoices"><button data-v="first" class="selected">先攻</button><button data-v="second">後攻</button></div></div>
  <div class="field" id="colorField"><label>石の色</label><div class="choices" id="colorChoices"><button data-v="black" class="selected">黒</button><button data-v="white">白</button></div></div>
- <p class="hint" id="settingHint">レベルが高いほどCPUが強くなります。</p><div class="actions"><button class="secondary" onclick="goMenu()">戻る</button><button onclick="startGame()">対局開始！</button></div>
+ <p class="cpu-level-guide">CPU 1〜4：入門 · 5〜8：初級 · 9〜12：中級 · 13〜16：上級 · 17〜20：最上級。独自の20段階です。</p><p class="hint" id="settingHint">レベルが高いほどCPUが強くなります。</p><div class="actions"><button class="secondary" onclick="goMenu()">戻る</button><button onclick="startGame()">対局開始！</button></div>
 </div></section>
 <section id="play" class="screen"><div class="topbar"><h2 id="playTitle">対局中</h2><button class="secondary" onclick="goMenu()">⌂ メニューへ戻る</button></div>
  <div class="game-layout"><div class="board-wrap"><div id="board" class="board"></div></div><div class="sidepanel">
@@ -47,7 +46,7 @@ let runId=0;
 let currentGame='shogi',level=5,first='first',othelloColor='black',game=null,history=[],selected=null,legalTargets=[],thinking=false,flipSquares={},lastMove=null,othelloAnimating=false;
 const screens=['menu','rules','settings','play'];
 function screen(id){screens.forEach(x=>$(x).classList.toggle('active',x===id))}
-function goMenu(){othelloAnimating=false;flipSquares={};runId++;window.clearBoardResult?.();thinking=false;screen('menu')}
+function goMenu(){window.BoardCpu?.cancel();othelloAnimating=false;flipSquares={};runId++;window.clearBoardResult?.();thinking=false;screen('menu')}
 function chooseGame(g){runId++;window.clearBoardResult?.();currentGame=g;screen('settings');$('settingsTitle').textContent=({shogi:'将棋の設定',othello:'オセロの設定',chess:'チェスの設定'})[g];$('colorField').style.display=g==='othello'?'block':'none';$('settingHint').textContent=g==='shogi'?'先手は下側、後手は上側です。':g==='othello'?'黒が先攻です。白を選ぶとCPUが黒になります。':'白が先攻です。';$('levels').innerHTML='';for(let i=1;i<=20;i++){let b=document.createElement('button');b.textContent=i;b.className=i===level?'selected':'';b.onclick=()=>{level=i;[...$('levels').children].forEach(x=>x.classList.toggle('selected',+x.textContent===i))};$('levels').append(b)}}
 $('turnChoices').addEventListener('click',e=>{let b=e.target.closest('button[data-v]');if(!b)return;first=b.dataset.v;if(currentGame==='othello'){othelloColor=first==='first'?'black':'white';[...$('colorChoices').children].forEach(x=>x.classList.toggle('selected',x.dataset.v===othelloColor))}[...$('turnChoices').children].forEach(x=>x.classList.toggle('selected',x===b))});
 $('colorChoices').addEventListener('click',e=>{let b=e.target.closest('button[data-v]');if(!b)return;othelloColor=b.dataset.v;first=othelloColor==='black'?'first':'second';[...$('turnChoices').children].forEach(x=>x.classList.toggle('selected',x.dataset.v===first));[...$('colorChoices').children].forEach(x=>x.classList.toggle('selected',x===b))});
@@ -56,12 +55,12 @@ function showRules(g){currentGame=g;let data={
  othello:['オセロのルール',['黒が先攻です。空いているマスに置き、相手の石を縦・横・斜めに挟むと裏返せます。','置ける場所がないときは自動でパスします。両者が置けなくなると終了です。','最後に石の数が多い方が勝ちです。'] ],
  chess:['チェスのルール',['白が先攻です。駒ごとに動き方が違います。●が表示された場所へ動かせます。','キングが攻撃されるとチェック。逃げ道がなくなるとチェックメイトで負けです。','ポーンは前に1マス（初回は2マスも可）、斜め前に相手の駒を取ります。最後の段に着くとクイーンなどに昇格します。','ナイトはL字、ビショップは斜め、ルークは縦横、クイーンは全方向、キングは1マス動きます。'] ]
  };$('rulesTitle').textContent=data[g][0]+'のルール';$('rulesText').innerHTML='<ul>'+data[g][1].map(x=>'<li style="margin:12px 0;line-height:1.7">'+x+'</li>').join('')+'</ul>';screen('rules')}
-function startGame(){othelloAnimating=false;flipSquares={};runId++;window.clearBoardResult?.();selected=null;thinking=false;history=[];lastMove=null;if(currentGame==='shogi'){game=initialShogi();}else if(currentGame==='othello'){game=initialOthello();}else{if(!window.Chess){alert('チェスのルールエンジンを読み込めませんでした。ネット接続を確認してください。');return}game=new Chess()}history=[snapshot()];$('playTitle').textContent=({shogi:'将棋',othello:'オセロ',chess:'チェス'})[currentGame]+' · CPU レベル'+level;screen('play');render();if(cpuTurn())scheduleCpu(450)}
+function startGame(){globalThis.ArcadeScore?.start('level-'+level);window.BoardCpu?.cancel();othelloAnimating=false;flipSquares={};runId++;window.clearBoardResult?.();selected=null;thinking=false;history=[];lastMove=null;if(currentGame==='shogi'){game=initialShogi();}else if(currentGame==='othello'){game=initialOthello();}else{if(!window.Chess){alert('チェスのルールエンジンを読み込めませんでした。ネット接続を確認してください。');return}game=new Chess()}history=[snapshot()];$('playTitle').textContent=({shogi:'将棋',othello:'オセロ',chess:'チェス'})[currentGame]+' · CPU レベル'+level;screen('play');render();if(cpuTurn())scheduleCpu(450)}
 function clone(x){return JSON.parse(JSON.stringify(x))}
 function snapshot(){return currentGame==='chess'?game.fen():clone(game)}
 function restore(s){if(currentGame==='chess')game=new Chess(s);else game=clone(s)}
 function pushHistory(){history.push(snapshot());if(history.length>300)history.shift()}
-function undoMove(){if(thinking||othelloAnimating||history.length<2)return;runId++;flipSquares={};window.clearBoardResult?.();history.pop();restore(history[history.length-1]);selected=null;lastMove=null;render()}
+function undoMove(){globalThis.ArcadeScore?.invalidate();if(thinking||othelloAnimating||history.length<2)return;runId++;flipSquares={};window.clearBoardResult?.();history.pop();restore(history[history.length-1]);selected=null;lastMove=null;render()}
 function restartGame(){startGame()}
 function humanSide(){return first==='first'?(currentGame==='chess'?'w':currentGame==='shogi'?'b':'black'):(currentGame==='chess'?'b':currentGame==='shogi'?'w':'white')}
 function cpuTurn(){if(currentGame==='shogi')return game.turn!==humanSide();if(currentGame==='othello')return game.turn!==(othelloColor==='black'?'B':'W');return game.turn()!==humanSide()}
@@ -81,7 +80,7 @@ function boardOutcome(){
  if(!game.game_over())return null;
  return {outcome:game.in_checkmate()?(game.turn()===humanSide()?'lose':'win'):'draw',detail:game.in_checkmate()?'チェックメイト':'引き分けです。'};
 }
-function endCheck(){const result=boardOutcome();if(result)window.showBoardResult?.(result.outcome,result.detail)}
+function endCheck(){const result=boardOutcome();if(result){globalThis.ArcadeScore?.finish(result.outcome==='win'?1:0);window.showBoardResult?.(result.outcome,result.detail)}}
 function scheduleCpu(delay){const id=runId;setTimeout(()=>{if(id===runId)cpuMove()},delay)}
 function animateCapture(fromEl,toEl,piece){if(!fromEl||!toEl)return;animateCaptureRects(fromEl.getBoundingClientRect(),toEl.getBoundingClientRect(),piece)}
 function animateCaptureRects(a,b,piece){if(!a||!b)return;let n=document.createElement('div');n.className='anim-fly';n.textContent=piece;n.style.left=(a.left+a.width/2-18)+'px';n.style.top=(a.top+a.height/2-22)+'px';n.style.setProperty('--dx',(b.left+b.width/2-a.left-a.width/2)+'px');n.style.setProperty('--dy',(b.top+b.height/2-a.top-a.height/2)+'px');document.body.append(n);setTimeout(()=>n.remove(),820)}
@@ -91,7 +90,7 @@ function initialShogi(){let b=Array.from({length:9},()=>Array(9).fill(null));let
 function sInside(x,y){return x>=0&&x<9&&y>=0&&y<9}
 function sMoves(g,x,y){let q=g.board[y][x];if(!q||q.s!==g.turn)return[];let f=q.s==='b'?-1:1,dirs=[];let promoted=['と','成銀','成桂','成香','龍','馬'];let p=q.p,pro=promoted.includes(p);if(p==='王')dirs=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];else if(p==='金'||['と','成銀','成桂','成香'].includes(p))dirs=[[-1,f],[0,f],[1,f],[-1,0],[1,0],[0,-f]];else if(p==='銀')dirs=[[-1,f],[0,f],[1,f],[-1,-f],[1,-f]];else if(p==='桂')dirs=[[-1,2*f],[1,2*f]];else if(p==='歩')dirs=[[0,f]];else if(p==='飛'||p==='龍')dirs=[[-1,0],[1,0],[0,-1],[0,1],...(p==='龍'?[[-1,-1],[1,-1],[-1,1],[1,1]]:[])];else if(p==='角'||p==='馬')dirs=[[-1,-1],[1,-1],[-1,1],[1,1],...(p==='馬'?[[0,-1],[0,1],[-1,0],[1,0]]:[])];else if(p==='香')dirs=[[0,f]];
  let out=[];for(let [dx,dy] of dirs){let sliding=p==='飛'||p==='角'||p==='香'||(p==='龍'&&(dx===0||dy===0))||(p==='馬'&&dx!==0&&dy!==0);let nx=x+dx,ny=y+dy;while(sInside(nx,ny)){let t=g.board[ny][nx];if(!t||t.s!==q.s)out.push([nx,ny]);if(t||!sliding)break;nx+=dx;ny+=dy}}return out}
-function sAllMoves(g,side){let out=[];for(let y=0;y<9;y++)for(let x=0;x<9;x++)if(g.board[y][x]?.s===side)for(let [nx,ny] of sMoves({...g,turn:side},x,y))out.push({from:[x,y],to:[nx,ny]});let h=g.hands[side];for(let p of Object.keys(h))if(h[p]>0)for(let y=0;y<9;y++)for(let x=0;x<9;x++)if(!g.board[y][x])out.push({drop:p,to:[x,y]});return out}
+function sAllMoves(g,side){let out=[];for(let y=0;y<9;y++)for(let x=0;x<9;x++)if(g.board[y][x]?.s===side)for(let [nx,ny] of sMoves({...g,turn:side},x,y))out.push({from:[x,y],to:[nx,ny]});let h=g.hands[side];for(let p of Object.keys(h))if(h[p]>0)for(let y=0;y<9;y++)for(let x=0;x<9;x++)if(!g.board[y][x]){let remaining=side==='b'?y:8-y;if((['歩','香'].includes(p)&&remaining===0)||(p==='桂'&&remaining<=1))continue;if(p==='歩'&&g.board.some(row=>row[x]?.s===side&&row[x]?.p==='歩'))continue;out.push({drop:p,to:[x,y]});}return out}
 function sPromote(p){return ({歩:'と',香:'成香',桂:'成桂',銀:'成銀',飛:'龍',角:'馬'})[p]||p}
 function sApply(g,m){let n=clone(g),side=n.turn;if(m.drop){n.hands[side][m.drop]--;n.board[m.to[1]][m.to[0]]={p:m.drop,s:side};}else{let [x,y]=m.from,[a,b]=m.to,pc=n.board[y][x],cap=n.board[b][a];if(cap){let cp=cap.p;let un={'と':'歩','成香':'香','成桂':'桂','成銀':'銀','龍':'飛','馬':'角'}[cp]||cp;n.hands[side][un]=(n.hands[side][un]||0)+1}n.board[y][x]=null;if(sCanPromote(pc,y,b)&&(sMustPromote(pc,b)||m.promote!==false))pc.p=sPromote(pc.p);n.board[b][a]=pc;}n.turn=side==='b'?'w':'b';return n}
 function sCanPromote(pc,fromY,toY){return ['歩','香','桂','銀','飛','角'].includes(pc.p)&&(pc.s==='b'?fromY<=2||toY<=2:fromY>=6||toY>=6)}
@@ -122,7 +121,18 @@ const cGlyph={k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟',K:'♔',Q:'♕',R:
 function chessClick(i){if(thinking||cpuTurn()||game.game_over())return;let files='abcdefgh',sq=files[i%8]+(8-Math.floor(i/8));let piece=game.get(sq);if(selected&&legalTargets.includes(sq)){let from=selected;let moving=game.get(from);let captured=game.get(sq);let move=game.move({from,to:sq,promotion:'q'});if(move){if(captured)animateCapture($('board').children[Number(from[1]-1)*8+files.indexOf(from[0])],$('board').children[i],cGlyph[captured.color==='w'?captured.type.toUpperCase():captured.type]);lastMove=[from,sq];pushHistory();selected=null;legalTargets=[];render();endCheck();if(!game.game_over()&&cpuTurn())scheduleCpu(350);return}}if(piece&&piece.color===game.turn()){selected=sq;legalTargets=game.moves({square:sq,verbose:true}).map(m=>m.to);renderChess()}else{selected=null;legalTargets=[];renderChess()}}
 function renderChess(){let b=$('board');b.className='board chess-board';b.innerHTML='';let files='abcdefgh';for(let y=0;y<8;y++)for(let x=0;x<8;x++){let sq=files[x]+(8-y),p=game.get(sq),el=document.createElement('div');el.className='square '+((x+y)%2?'dark':'light')+(selected===sq?' selected-square':'')+(lastMove&&lastMove.includes(sq)?' last-move':'');el.onclick=()=>chessClick(y*8+x);if(p){let sp=document.createElement('span');sp.className='piece '+(p.color==='w'?'whitepiece':'blackpiece');sp.textContent=cGlyph[p.color==='w'?p.type.toUpperCase():p.type];el.append(sp)}if(legalTargets.includes(sq)){let dot=document.createElement('i');dot.className=p?'capture-dot':'dot';el.append(dot)}b.append(el)}$('hands').innerHTML=''}
 function chessAI(){let moves=game.moves({verbose:true});if(!moves.length)return null;let depth=level<5?1:level<10?2:level<16?2:3,vals={p:100,n:320,b:330,r:500,q:900,k:20000};function evalPos(){let sc=0,board=game.board();for(let y=0;y<8;y++)for(let x=0;x<8;x++){let p=board[y][x];if(p)sc+=(p.color==='w'?1:-1)*(vals[p.type]+(p.type==='p'?(p.color==='w'?6-y:y-1)*3:0))}return sc*(game.turn()==='w'?1:-1)}function minimax(d,a,b){if(d===0||game.game_over())return evalPos();let ms=game.moves();if(game.turn()==='w'){let v=-Infinity;for(let m of ms){game.move(m);v=Math.max(v,minimax(d-1,a,b));game.undo();a=Math.max(a,v);if(b<=a)break}return v}else{let v=Infinity;for(let m of ms){game.move(m);v=Math.min(v,minimax(d-1,a,b));game.undo();b=Math.min(b,v);if(b<=a)break}return v}}let best=moves[0],bestScore=-Infinity;for(let m of moves){game.move(m);let score=-minimax(depth-1,-Infinity,Infinity);game.undo();score+=Math.random()*(21-level)*2;if(score>bestScore){bestScore=score;best=m}}return best}
-function cpuMove(){if(thinking||othelloAnimating||!document.getElementById('play').classList.contains('active')||!cpuTurn()||boardOutcome())return;thinking=true;const id=runId;$('turnStatus').textContent='CPUが考えています…';setTimeout(()=>{if(id!==runId)return;let m=currentGame==='shogi'?shogiAI():currentGame==='othello'?oAI():chessAI();if(m){if(currentGame==='shogi'){game=sApply(game,m);pushHistory()}else if(currentGame==='othello'){thinking=false;playOthelloMove(m);return;}else{game.move(m);pushHistory()}}thinking=false;selected=null;legalTargets=[];render();endCheck()},Math.max(180,650-level*20))}
-</script><script src="board-effects.js?v=1"></script></body></html>
+async function cpuMove(){
+ if(thinking||othelloAnimating||!document.getElementById('play').classList.contains('active')||!cpuTurn()||boardOutcome())return;
+ thinking=true;const id=runId,kind=currentGame;$('turnStatus').textContent='CPUが考えています…';
+ let move=await window.BoardCpu.choose({kind,level,state:kind==='chess'?game.fen():clone(game)});
+ if(id!==runId)return;
+ const legal=kind==='shogi'?sLegalMoves(game):kind==='othello'?oMoves(game):game.moves({verbose:true});
+ const match=legal.find(m=>kind==='othello'?m.x===move?.x&&m.y===move?.y:kind==='shogi'?JSON.stringify(m.from)===JSON.stringify(move?.from)&&JSON.stringify(m.to)===JSON.stringify(move?.to)&&m.drop===move?.drop:m.from===move?.from&&m.to===move?.to);
+ move=match||legal[0];
+ if(move){if(kind==='shogi'){game=sApply(game,move);pushHistory();}else if(kind==='othello'){thinking=false;playOthelloMove(move);return;}else{game.move(move);pushHistory();}}
+ thinking=false;selected=null;legalTargets=[];render();endCheck();
+}
+</script><script src="cpu-client.js?v=ranked1"></script><script src="board-effects.js?v=1"></script></body></html>
+
 
 
