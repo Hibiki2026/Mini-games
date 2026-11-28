@@ -7,7 +7,7 @@
 <title>Floppy2048</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#101326;color:white;font-family:system-ui,sans-serif;overflow:auto}
+body{margin:0;background:#101326;color:white;font-family:system-ui,sans-serif}
 #app{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:10px}
 header{width:100%;max-width:1020px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:5px 3px 12px}
 .logo{font-size:23px;font-weight:900}
@@ -120,6 +120,7 @@ const playsEl=document.getElementById("plays");
 
 let W=600,H=700,dpr=1;
 let running=false;
+let canRetry=false;
 let player,blocks,particles;
 let score=0,best=0,plays=0;
 let speed=3,frame=0;
@@ -270,14 +271,16 @@ resize();
 
 function showMenu(){
  running=false;
+ canRetry=false;
  overlay.style.display="flex";
+
  panel.innerHTML=`
   <h1>FLOPPY<span style="color:#8b83ff">2048</span></h1>
   <p>プレイする難易度を選んでね！</p>
   <div class="levels">
    <button class="levelBtn easy" data-level="easy">
     <b>🟢 簡単</b>
-    <small>ブロック少なめ。広い間隔でゆっくり。加速なし。小さい数字はセーフ。</small>
+    <small>ブロック少なめ。広い間隔でゆっくり。小さい数字はセーフ。</small>
    </button>
    <button class="levelBtn normal" data-level="normal">
     <b>🔵 普通</b>
@@ -293,6 +296,7 @@ function showMenu(){
    </button>
   </div>
  `;
+
  panel.querySelectorAll("[data-level]").forEach(btn=>{
   btn.addEventListener("click",()=>{
    selectedLevel=btn.dataset.level;
@@ -419,6 +423,7 @@ function flap(){
 }
 
 function start(){
+ canRetry=false;
  reset();
 
  plays++;
@@ -435,14 +440,15 @@ function start(){
 
 function gameOver(){
  if(!running)return;
+
  running=false;
+ canRetry=true;
 
  if(score>best){
   best=score;
   bestEl.textContent=best;
  }
 
- // プレイ終了時の記録を全件保存
  history.push({
   score:score,
   value:player.value,
@@ -465,8 +471,15 @@ function gameOver(){
   </p>
   <button class="subBtn" id="retryBtn">もう一度プレイ</button>
   <button class="subBtn" id="menuBtn">レベル選択に戻る</button>
+  <p style="margin-top:12px;color:#aeb7d8">
+   ENTER または SPACE でも再チャレンジ！
+  </p>
  `;
- document.getElementById("retryBtn").addEventListener("click",start);
+
+ document.getElementById("retryBtn").addEventListener("click",()=>{
+  if(canRetry)start();
+ });
+
  document.getElementById("menuBtn").addEventListener("click",showMenu);
 }
 
@@ -584,7 +597,6 @@ function update(dt){
     (selectedLevel==="easy"||selectedLevel==="normal")&&
     b.value<player.value
    ){
-    // 簡単・普通は自分より小さい数字ならセーフ
     b.done=true;
     burst(b.x+b.w/2,b.y+b.h/2,"#8ce8bd",10);
 
@@ -652,18 +664,29 @@ function loop(now){
  if(running)requestAnimationFrame(loop);
 }
 
+// キーボード操作
+document.addEventListener("keydown",e=>{
+ const key=e.code;
+
+ if(key!=="Enter"&&key!=="Space"&&key!=="ArrowUp")return;
+
+ // ゲーム中はジャンプ
+ if(running){
+  e.preventDefault();
+  flap();
+  return;
+ }
+
+ // ゲームオーバー画面ではEnter・Spaceで再挑戦
+ if(canRetry&&(key==="Enter"||key==="Space")){
+  e.preventDefault();
+  start();
+ }
+});
+
 canvas.addEventListener("pointerdown",e=>{
  e.preventDefault();
  flap();
-});
-
-document.addEventListener("keydown",e=>{
- if(e.code==="Enter"||e.code==="Space"||e.code==="ArrowUp"){
-  if(running){
-   e.preventDefault();
-   flap();
-  }
- }
 });
 
 drawBackground(0);
@@ -671,4 +694,3 @@ showMenu();
 </script>
 </body>
 </html>
-
